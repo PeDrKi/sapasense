@@ -1,3 +1,4 @@
+import { formatVnd, clampPeople } from '../utils/budget'
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspense } from 'react'
 import { BtnPrimary, BtnSecondary }          from '../components/ui'
 const LeafletMap = lazy(() => import('../components/LeafletMap'))
@@ -15,13 +16,13 @@ import { downloadICS } from '../utils/ics'
 import { postReview } from '../utils/backend'
 import { exportPDF }                          from '../utils/exportPDF'
 import { SkeletonList, SkeletonResultHeader } from '../components/Skeleton'
-import { useT }                               from '../i18n'
+import { useT, useLang }                     from '../i18n'
 import type { Answers, Plan, Stop, Review, Weather, Mode } from '../types'
 
 type StopState = 'now' | 'upcoming' | 'past' | null
 interface Accommodation { id: string; img?: string | null; name: string; type: string; area: string; price: string; desc: string; pros: string[]; suitable: boolean }
 interface Leg { from: string; to: string; mode: string; duration: string; cost: string; costNum: number; tip: string }
-interface StayData { accommodations: Accommodation[]; transport: Leg[]; budgetSummary: { tickets: string; transport: string; total: string } }
+interface StayData { accommodations: Accommodation[]; transport: Leg[]; budgetSummary: { tickets: string; transport: string; total: string; groupTotal?: string } }
 interface SharedPlan { ids: string[]; startHour?: number; dateISO?: string }
 type R = ReturnType<typeof useT>['result']
 
@@ -136,6 +137,7 @@ interface Props { answers: Answers; wx: Weather | null; onRestart: () => void; o
 
 export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared }: Props) {
   const t = useT()
+  const { lang } = useLang()
   const r = t.result
 
   const [status,    setStatus]    = useState<'loading' | 'done' | 'error'>('loading')
@@ -173,7 +175,8 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
   const moodLabel   = t.moods[answers.mood]?.label    || ''
   const timeLabel   = t.times[answers.time]?.label    || ''
   const groupLabel  = answers.group === 'any' ? '' : (t.groups[answers.group]?.label  || '')
-  const budgetLabel = t.budgetsFull[answers.budget-1] || ''
+  const peopleN = clampPeople(answers.people)
+  const budgetLabel = formatVnd(answers.budget, lang) + (peopleN > 1 ? ` · ${peopleN} ${lang === 'EN' ? 'people' : 'người'}` : '')
 
   const now  = effectiveNow(answers)
   const hour = now.getHours()
@@ -221,7 +224,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
   // Static accommodation
   const fetchStay = (stops: Stop[]) => {
     setStayStatus('loading')
-    const budgetAmt = getBudgetAmount(answers.budget)
+    const budgetAmt = getBudgetAmount(answers.budget)   // tổng ngân sách: dùng để xét giá phòng/đêm
     // Lưu trú lấy từ danh sách địa điểm (type 'lodging', mã NN***): giá/đêm nằm ở badge đầu tiên, hạng ở badge thứ hai.
     const lodging = getPlaces().filter(p => p.type === 'lodging')
     const affordable = lodging.filter(p => p.cost <= budgetAmt).sort((x, y) => y.cost - x.cost)
@@ -252,7 +255,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
         const tickets = stops.reduce((a, st) => a + (st.cost || 0), 0)
         const move    = transport.reduce((a, l) => a + (l.costNum || 0), 0)
         const money   = (n: number) => n === 0 ? 'Miễn phí' : `~${n.toLocaleString('vi-VN')}đ`
-        return { tickets: money(tickets), transport: money(move), total: money(tickets + move) }
+        return { tickets: money(tickets), transport: money(move), total: money(tickets + move), groupTotal: money((tickets + move) * peopleN) }
       })()
     })
     setStayStatus('done')
@@ -456,7 +459,8 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
                     <strong style={{ color:C.ink }}>{r.sumStops(summary.count)}</strong>
                     <span>⏱ {fmtDur(summary.span)} {r.sumSpan}</span>
                     {summary.km > 0 && <span>↔ {fmtKm(summary.km)} · ~{fmtDur(summary.move)} {r.sumMove}</span>}
-                    <span>🎟 {summary.tickets ? `${summary.tickets.toLocaleString('vi-VN')}đ ${(result?.stops || []).every(x => x.type==='food' || x.type==='cafe') ? r.sumFood : r.sumTickets}` : r.whyFree}</span>
+                    <span>🎟 {summary.tickets ? `${summary.tickets.toLocaleString('vi-VN')}đ${peopleN > 1 ? r.perPerson : ''} ${(result?.stops || []).every(x => x.type==='food' || x.type==='cafe') ? r.sumFood : r.sumTickets}` : r.whyFree}</span>
+                    {peopleN > 1 && summary.tickets > 0 && <span>{r.groupTotal(peopleN, '~' + (summary.tickets * peopleN).toLocaleString('vi-VN') + 'đ', formatVnd(answers.budget, lang))}</span>}
                   </div>
                 )}
                 {result.stops?.map((stop,i) => (
@@ -561,6 +565,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
                             <div style={{ fontWeight:600, fontSize:'0.88rem', color:C.sage }}>{v}</div>
                           </div>
                         ))}
+                        {peopleN > 1 && <div style={{ gridColumn:'1 / -1', textAlign:'center', fontSize:'0.78rem', color:C.sage, borderTop:'1px solid rgba(61,92,53,.2)', paddingTop:8 }}>{r.groupTotal(peopleN, stayData.budgetSummary.groupTotal || '', formatVnd(answers.budget, lang))}</div>}
                       </div>
                     )}
                     {answers.time === 'full' && (

@@ -1,7 +1,8 @@
 // Share a plan as a URL hash: answers + ordered stop ids + start hour/date. No server needed.
+import { isValidBudget } from './budget'
 import type { Answers, Plan, Focus } from '../types'
 
-const KEYS: (keyof Answers)[] = ['mood', 'budget', 'time', 'group', 'mode', 'focus', 'startHour', 'dayOffset']
+const KEYS: (keyof Answers)[] = ['mood', 'budget', 'people', 'time', 'group', 'mode', 'focus', 'startHour', 'dayOffset']
 const MOODS = ['calm', 'adventure', 'nostalgia', 'energy']
 const TIMES = ['2h', 'half', 'full']
 const GROUPS = ['solo', 'couple', 'friends', 'family', 'any']
@@ -22,9 +23,10 @@ export function decodePlan(hash: unknown): { answers: Answers; ids: string[]; st
     if (!raw) return null
     const { a, ids, sh, d } = JSON.parse(unb64(raw))
     if (!a || !MOODS.includes(a.mood) || !TIMES.includes(a.time) || !GROUPS.includes(a.group)) return null
-    if (!Number.isInteger(a.budget) || a.budget < 1 || a.budget > 5) return null
+    if (!isValidBudget(a.budget)) return null
     if (!Array.isArray(ids) || ids.some((i: unknown) => typeof i !== 'string')) return null
     const answers: Answers = { mood:a.mood, budget:a.budget, time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:(['food', 'cafe'].includes(a.focus) ? a.focus : 'all') as Focus }
+    if (Number.isInteger(a.people) && a.people >= 1 && a.people <= 100) answers.people = a.people
     if (Number.isFinite(a.startHour)) answers.startHour = a.startHour
     if (Number.isInteger(a.dayOffset) && a.dayOffset >= 0 && a.dayOffset <= 1) answers.dayOffset = a.dayOffset
     return {

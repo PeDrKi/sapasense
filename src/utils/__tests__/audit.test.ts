@@ -63,3 +63,14 @@ it('old HN backup codes still restore; new codes use SS1 prefix', async () => {
   expect(importMemory('HN2.' + code.slice(4)).ok).toBe(true)
   expect(importMemory('XX1.' + code.slice(4)).ok).toBe(false)
 })
+
+it('share link keeps total budget and people', async () => {
+  const { encodePlan, decodePlan } = await import('../share')
+  const now = new Date(2026, 9, 29, 9, 0)
+  const { inferAnswers } = await import('../infer')
+  const answers = { ...inferAnswers({ now, wx: null }), budget: 7_654_321, people: 6, time: 'full' } as any
+  const result = recommend({ answers, wx: null, now })
+  const back = decodePlan(encodePlan({ answers, result }))
+  expect(back?.answers.budget).toBe(7_654_321)
+  expect(back?.answers.people).toBe(6)
+})

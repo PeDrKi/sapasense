@@ -1,0 +1,39 @@
+# Deploy lên GitHub Pages — chỉ chạy KHI BẠN BẤM TAY (Actions → Run workflow), vì bản chính chạy trên Vercel.
+# Muốn tự chạy mỗi lần push: thêm lại 'push: { branches: [main] }' dưới 'on:'.
+# Bật: GitHub repo → Settings → Pages → Build and deployment → Source = "GitHub Actions".
+name: Deploy to GitHub Pages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+        env:
+                    VITE_ADMIN_PASSWORD: ${{ secrets.VITE_ADMIN_PASSWORD }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

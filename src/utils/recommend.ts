@@ -1,3 +1,4 @@
+import { normalizeBudget, budgetPerPerson } from './budget'
 import { getPlaces }              from '../data/placeStore'
 import { mergeSeasonsIntoPlaces } from '../data/seasons'
 import { mergeLocalMode }         from '../data/localMode'
@@ -26,7 +27,7 @@ const WEIGHTS = { mood: 0.35, group: 0.25, budget: 0.25, timeOfDay: 0.15 }
 /** Budget slider steps (index = answer 1..5). Sa Pa prices run higher than a city break: treks and resort dining cost 1–1.5M. */
 export const BUDGET_STEPS = [0, 200000, 500000, 800000, 1500000, 3000000]
 export function getBudgetAmount(val: number): number {
-  return BUDGET_STEPS[val] || 800000
+  return normalizeBudget(val)
 }
 
 export function getTimeOfDay(hour: number): 'morning' | 'afternoon' | 'evening' {
@@ -327,7 +328,8 @@ function jitter(seed: string, id: string): number {
 export const JITTER = 22
 
 function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answers; wx: Weather | null; start: Start; places: Place[]; exclude?: string[] }): PlanCtx {
-  const { mood, budget: budgetVal, time: timeId, group, mode = 'tourist', focus = 'all' } = answers
+  const { mood, time: timeId, group, mode = 'tourist', focus = 'all' } = answers
+  const budgetVal = budgetPerPerson(answers.budget, answers.people)
   const wxCode = wx?.code ?? 0
   const { date, startHour } = start
   const hour   = Math.floor(startHour)

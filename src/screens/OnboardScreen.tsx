@@ -5,6 +5,7 @@ import { Grain, StepBar,
 import LangToggle                from '../components/LangToggle'
 import { C }                     from '../styles/tokens'
 import { useT }                  from '../i18n'
+import { BUDGET_MIN, BUDGET_MAX, BUDGET_PRESETS, normalizeBudget, formatVnd, clampPeople, PEOPLE_MAX, budgetPerPerson, parseBudgetInput, clampBudget, sliderToBudget, budgetToSlider } from '../utils/budget'
 import { AREA_PRESETS, validOrigin } from '../utils/recommend'
 import { reverseGeocode } from '../utils/geocode'
 import { useLang } from '../i18n'
@@ -15,7 +16,7 @@ function OptionCard({ icon, label, desc, selected, onSelect }: { icon: string; l
   return (
     <div onClick={onSelect} role="radio" aria-checked={!!selected} tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
-      style={{ background:selected?C.rustLight:C.card, border:`1px solid ${selected?C.rust:C.border}`, padding:'0.9rem 1.1rem', cursor:'pointer', display:'flex', alignItems:'flex-start', gap:'0.8rem', transition:'all 0.18s' }}>
+      style={{ background:selected?C.rustLight:C.card, border:`1px solid ${selected?C.rust:C.border}`, padding:'0.9rem 1.1rem', cursor:'pointer', display:'flex', alignItems:'flex-start', gap:'0.8rem', transition:'background-color 0.18s, border-color 0.18s' }}>
       <span style={{ fontSize:'1.2rem', flexShrink:0, lineHeight:1.5 }}>{icon}</span>
       <div>
         <div style={{ fontWeight:600, fontSize:'0.88rem', marginBottom:2 }}>{label}</div>
@@ -79,7 +80,10 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
   const t  = useT()
   const ob = t.onboard
   const [step, setStep] = useState(0)
-  const [ans,  setAns]  = useState<Draft>(() => ({ mood:null, budget:3, time:null, group:null, mode:'tourist', focus:'all', ...(initial || {}) }))
+  const [ans,  setAns]  = useState<Draft>(() => ({ mood:null, budget:800000, people:1, time:null, group:null, mode:'tourist', focus:'all', ...(initial || {}) }))
+  const [budgetText, setBudgetText] = useState('')
+  const [budgetEditing, setBudgetEditing] = useState(false)
+  const peopleTouched = useRef(!!initial?.people && initial.people > 1)
   const [day,  setDay]  = useState(0)        // 0 = today, 1 = tomorrow
   const [hr,   setHr]   = useState('now')    // 'now' or an hour 6..21
 
@@ -106,7 +110,14 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
   const next    = () => step < LAST ? setStep(s => s+1) : finish()
   const back    = () => setStep(s => s-1)
 
-  const budgetFull = t.budgetsFull[ans.budget - 1] || t.budgetsFull[2]
+  const { lang: curLang } = useLang()
+  const budgetVnd = normalizeBudget(ans.budget)
+  const people = clampPeople(ans.people)
+  const setPeople = (n: number) => { peopleTouched.current = true; setAns(a => ({ ...a, people: clampPeople(n) })) }
+  const budgetFull = formatVnd(budgetVnd, curLang)
+  const setBudget = (n: number) => { setAns(a => ({ ...a, budget: clampBudget(n) })); setBudgetEditing(false) }
+  const commitBudgetText = () => { const n = parseBudgetInput(budgetText); if (n != null) setBudget(n); else setBudgetEditing(false) }
+  const shortVnd = (n: number) => n >= 1_000_000_000 ? (n / 1_000_000_000) + (curLang === 'EN' ? 'B' : ' tỷ') : n >= 1_000_000 ? (n / 1_000_000).toString().replace('.', ',') + 'M' : Math.round(n / 1000) + 'K'
 
   const moodIcons: Record<string, string>  = { calm:'🍃', adventure:'🗺️', nostalgia:'🕰️', energy:'⚡' }
   const groupIcons: Record<string, string> = { solo:'🧍', couple:'👫', friends:'👥', family:'👨‍👩‍👧' }
@@ -163,14 +174,44 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
             <span style={{ fontSize:'0.82rem', color:C.muted }}>{ob.budgetLbl}</span>
             <span style={{ fontFamily:"'Playfair Display',serif", fontSize:'1.55rem', color:C.rust }}>{budgetFull}</span>
           </div>
-          <input type="range" min={1} max={5} step={1} value={ans.budget}
-            onChange={e => setAns(a => ({...a, budget:+e.target.value}))}
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+            <input type="text" inputMode="numeric" aria-label={ob.budgetLbl}
+              value={budgetEditing ? budgetText : budgetVnd.toLocaleString(curLang === 'EN' ? 'en-US' : 'vi-VN')}
+              onFocus={e => { setBudgetText(String(budgetVnd)); setBudgetEditing(true); e.currentTarget.select() }}
+              onChange={e => setBudgetText(e.target.value)}
+              onBlur={commitBudgetText}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitBudgetText(); (e.currentTarget as HTMLInputElement).blur() } }}
+              style={{ flex:1, minWidth:0, padding:'0.6rem 0.8rem', fontSize:'1rem', border:`1px solid ${C.border}`, background:C.card, color:C.ink, fontFamily:'inherit' }}/>
+            <span style={{ fontSize:'0.9rem', color:C.muted }}>đ</span>
+          </div>
+          <input type="range" min={0} max={1000} step={1} value={budgetToSlider(budgetVnd)}
+            aria-label={ob.budgetLbl} aria-valuetext={budgetFull}
+            onChange={e => setBudget(sliderToBudget(+e.target.value))}
             style={{ accentColor:C.rust }}/>
-          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
-            {t.budgets.map((b, i) => (
-              <span key={i} style={{ fontSize:'0.7rem', transition:'color 0.2s', color:ans.budget===i+1?C.rust:C.muted, fontWeight:ans.budget===i+1?600:400 }}>{b}</span>
+          <div aria-hidden="true" style={{ position:'relative', height:16, marginTop:6, fontSize:'0.68rem', color:C.muted }}>
+            {[BUDGET_MIN, 1_000_000, 10_000_000, 100_000_000, BUDGET_MAX].map((v, i, arr) => {
+              const pct = budgetToSlider(v) / 10
+              return <span key={v} style={{ position:'absolute', left:`${pct}%`, transform: i === 0 ? 'none' : i === arr.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)', whiteSpace:'nowrap' }}>{shortVnd(v)}</span>
+            })}
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:12 }}>
+            {BUDGET_PRESETS.map(p => (
+              <button type="button" key={p} aria-pressed={budgetVnd === p} onClick={() => setBudget(p)}
+                style={{ padding:'0.35rem 0.75rem', fontSize:'0.74rem', cursor:'pointer', border:`1px solid ${budgetVnd===p?C.rust:C.border}`, background:budgetVnd===p?C.rustLight:'transparent', color:budgetVnd===p?C.rust:C.muted, fontFamily:'inherit' }}>{shortVnd(p)}</button>
             ))}
           </div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:16, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
+            <label htmlFor="people-input" style={{ fontSize:'0.85rem' }}>{ob.peopleLbl}</label>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <button type="button" aria-label="−" disabled={people <= 1} onClick={() => setPeople(people - 1)} style={{ width:36, height:36, fontSize:'1.1rem', cursor:'pointer', border:`1px solid ${C.border}`, background:C.card, color:C.ink }}>−</button>
+              <input id="people-input" type="text" inputMode="numeric" value={people}
+                onChange={e => { const d = e.target.value.replace(/\D/g, ''); if (d) setPeople(+d) }}
+                style={{ width:52, textAlign:'center', padding:'0.45rem 0', fontSize:'1rem', border:`1px solid ${C.border}`, background:C.card, color:C.ink, fontFamily:'inherit' }}/>
+              <button type="button" aria-label="+" disabled={people >= PEOPLE_MAX} onClick={() => setPeople(people + 1)} style={{ width:36, height:36, fontSize:'1.1rem', cursor:'pointer', border:`1px solid ${C.border}`, background:C.card, color:C.ink }}>+</button>
+            </div>
+          </div>
+          {people > 1 && <div style={{ fontSize:'0.78rem', color:C.rust, marginTop:8, textAlign:'right' }}>{ob.peoplePer(formatVnd(budgetPerPerson(budgetVnd, people), curLang))}</div>}
+          <div style={{ fontSize:'0.68rem', color:C.muted, marginTop:10, lineHeight:1.5 }}>{ob.budgetNote}</div>
         </div>
       ),
     },
@@ -205,7 +246,7 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
         <div role="radiogroup" style={{ display:'grid', gap:9, marginBottom:'1.75rem' }}>
           {Object.entries(t.groups).map(([id, {label, desc}]) => (
             <OptionCard key={id} icon={groupIcons[id]} label={label} desc={desc}
-              selected={ans.group===id} onSelect={() => setAns(a => ({...a, group:id as Answers['group']}))}/>
+              selected={ans.group===id} onSelect={() => setAns(a => ({ ...a, group:id as Answers['group'], people: peopleTouched.current ? a.people : (id === 'solo' ? 1 : id === 'couple' ? 2 : a.people) }))}/>
           ))}
         </div>
       ),

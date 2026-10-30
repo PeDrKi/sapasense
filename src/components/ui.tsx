@@ -33,7 +33,7 @@ export function BtnPrimary({ children, onClick, disabled, style={}, className }:
         padding:'0.85rem 1.6rem', fontSize:'0.87rem',
         fontFamily:"'Be Vietnam Pro',sans-serif", fontWeight:500,
         cursor: disabled ? 'not-allowed' : 'pointer',
-        letterSpacing:'0.05em', transition:'all 0.2s',
+        letterSpacing:'0.05em', transition:'background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s',
         opacity: disabled ? 0.4 : 1,
         transform: hov && !disabled ? 'translateY(-1px)' : 'none',
         ...style,
@@ -53,7 +53,7 @@ export function BtnSecondary({ children, onClick, style={} }: BtnProps) {
         border:`1px solid ${hov ? C.ink : C.border}`,
         padding:'0.85rem 1.4rem', fontSize:'0.87rem',
         fontFamily:"'Be Vietnam Pro',sans-serif",
-        cursor:'pointer', transition:'all 0.2s', ...style,
+        cursor:'pointer', transition:'background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s', ...style,
       }}>
       {children}
     </button>

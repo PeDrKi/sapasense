@@ -34,7 +34,8 @@ export interface Weather { code?: number; temp?: number | string; icon?: string;
 /** Everything the recommender needs to know about the user's wishes. */
 export interface Answers {
   mood: Mood
-  budget: number
+  budget: number            // TỔNG ngân sách (VND) cho cả nhóm; số 1..5 = mức cũ (mỗi người)
+  people?: number           // số người đi (mặc định 1)
   time: TimeId
   group: GroupAnswer
   mode?: Mode

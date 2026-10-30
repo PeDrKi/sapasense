@@ -1,3 +1,4 @@
+import { formatVnd } from './budget'
 import type { Answers, Plan, Weather } from '../types'
 import type { jsPDF } from 'jspdf'
 
@@ -52,8 +53,7 @@ export async function exportPDF(result: Plan, answers: Answers, wx: Weather | nu
   }
   const hLine = (y: number) => { doc.setDrawColor(200,194,184); doc.setLineWidth(0.3); doc.line(M, y, W-M, y) }
 
-  const budgetsFull = ['100.000đ','200.000đ','300.000đ','500.000đ','1.000.000đ+']
-  const budgetLabel = budgetsFull[answers.budget - 1] || '300.000đ'
+  const budgetLabel = formatVnd(answers.budget, 'VI') + ((answers.people || 1) > 1 ? ` · ${answers.people} người` : '')
   const wxStr = wx ? `${wx.temp}°C` : 'Sa Pa'
   const modeLabel = result.mode === 'local' ? 'Người địa phương' : 'Du khách'
   const now = new Date()
