@@ -1,0 +1,13 @@
+# Netlify / Cloudflare Pages: build lệnh và thư mục xuất bản
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# sw.js không được cache lâu để bản cập nhật tới người dùng nhanh
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"

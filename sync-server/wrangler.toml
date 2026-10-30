@@ -1,0 +1,17 @@
+name = "sapasense-api"
+main = "worker.ts"
+compatibility_date = "2024-09-01"
+
+# 1) npx wrangler d1 create sapasense         → copy the database_id it prints into the line below
+# 2) npx wrangler d1 execute sapasense --remote --file=schema.sql
+# 3) npm run db:seed && npx wrangler d1 execute sapasense --remote --file=seed.sql   (from the project root: loads the built-in places)
+# 4) npx wrangler secret put ADMIN_TOKENS      → who may use the Admin screen, e.g.  chu:Xk39...long-random:editor,ban:Yq82...long-random:viewer
+#    (tokens ≥ 8 chars; roles: editor = may change data, viewer = read only). The older single ADMIN_TOKEN also works.
+[[d1_databases]]
+binding = "DB"
+database_name = "sapasense"
+database_id = "PASTE_D1_DATABASE_ID_HERE"
+
+# Only your site may call the API from a browser:
+[vars]
+ALLOWED_ORIGIN = "https://YOUR-SITE.pages.dev"

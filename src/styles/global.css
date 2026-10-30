@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body,#root{height:100%}
+body{font-family:'Be Vietnam Pro',sans-serif;background:#F4EFE6;color:#1A1916;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spinSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+
+.skeleton{
+  background:linear-gradient(90deg,rgba(26,25,22,.06) 25%,rgba(26,25,22,.12) 37%,rgba(26,25,22,.06) 63%);
+  background-size:600px 100%;
+  animation:shimmer 1.4s ease infinite;
+  border-radius:3px;
+}
+
+input[type='range']{width:100%;cursor:pointer;accent-color:#B85C2A}
+
+.leaflet-container{font-family:'Be Vietnam Pro',sans-serif!important;z-index:1}
+.leaflet-popup-content-wrapper{border-radius:2px!important;border:1px solid rgba(26,25,22,.13)!important;box-shadow:0 4px 20px rgba(0,0,0,.1)!important}
+.leaflet-popup-content{font-family:'Be Vietnam Pro',sans-serif!important;font-size:13px!important;margin:10px 12px!important}
+.custom-pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center}
+.custom-pin span{transform:rotate(45deg);color:white;font-weight:700;font-size:12px;line-height:1}
+
+.lang-toggle{display:flex;border:1px solid rgba(26,25,22,.13);border-radius:4px;overflow:hidden;flex-shrink:0}
+.lang-toggle button{background:none;border:none;padding:.3rem .65rem;font-size:.72rem;font-family:'Be Vietnam Pro',sans-serif;cursor:pointer;letter-spacing:.06em;font-weight:500;transition:all .18s}
+.lang-toggle button.active{background:rgba(26,25,22,.1)}
+
+@media(max-width:640px){
+  .admin-grid-4{grid-template-columns:1fr 1fr!important}
+  .admin-grid-2{grid-template-columns:1fr!important}
+  .map-topbar{flex-wrap:wrap;gap:8px!important}
+  .search-wrap{order:3;width:100%;max-width:100%!important}
+  .season-badge{display:none}
+  .type-filter{overflow-x:auto;-webkit-overflow-scrolling:touch;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .result-header{flex-direction:column!important;align-items:flex-start!important}
+  .result-btns{align-self:flex-end;margin-top:8px}
+  .tab-bar{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;position:sticky;top:0;z-index:5;background:#F4EFE6;margin-left:-1.75rem!important;margin-right:-1.75rem!important;padding:0 1rem}
+  .tab-bar::-webkit-scrollbar{display:none}
+  .tab-bar button{padding:.7rem .8rem!important;font-size:.78rem!important;flex-shrink:0}
+  .tab-spacer{display:none}
+  .tab-regen{flex-shrink:0;padding:.7rem .5rem!important;white-space:nowrap}
+  .act-bar{flex-wrap:nowrap!important;position:sticky;bottom:0;z-index:6;background:rgba(244,239,230,.96);backdrop-filter:blur(6px);padding:.6rem 0!important;margin:0 -1.75rem;padding-left:1.75rem!important;padding-right:1.75rem!important;border-top:1px solid rgba(26,25,22,.12);order:99}
+  .act-bar>a,.act-bar>button{flex:1 1 auto;text-align:center;padding:.65rem .9rem!important;font-size:.82rem!important}
+  .star-row{flex-direction:column;align-items:flex-start!important}
+  .review-actions{flex-direction:column;align-items:stretch!important}
+  .map-home{position:static!important;margin:.4rem 1rem 0 auto}
+  .welcome-title{font-size:clamp(2.2rem,12vw,4.8rem)!important}
+  .onboard-wrap{padding:1.25rem!important}
+}
+
+/* keyboard focus must be visible everywhere */
+:focus-visible{outline:2px solid #B85C2A;outline-offset:2px}
+button:focus:not(:focus-visible),[role=radio]:focus:not(:focus-visible){outline:none}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Admin: sidebar becomes a top bar on narrow screens */
+@media(max-width:768px){
+  .admin-wrap{flex-direction:column!important}
+  .admin-side{position:static!important;width:100%!important;height:auto!important;flex-direction:column!important}
+  .admin-brand{padding:.8rem 1rem!important}
+  .admin-nav{display:flex!important;overflow-x:auto;padding:0!important;flex:none!important}
+  .admin-nav button{width:auto!important;white-space:nowrap;padding:.7rem 1rem!important}
+  .admin-foot{flex-direction:row!important;padding:.6rem 1rem!important}
+  .admin-main{margin-left:0!important}
+  .admin-body{padding:1rem!important}
+}
+
+/* ── Bo góc thân thiện cho nút, thẻ lựa chọn và ô nhập ── */
+:root{--r-btn:12px;--r-card:16px;--r-pill:999px}
+button,a[href][style*="padding"]{border-radius:var(--r-btn)!important}
+button[aria-pressed],button[aria-selected]{border-radius:var(--r-pill)!important}
+[role="radio"]{border-radius:var(--r-card)!important}
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,textarea{border-radius:10px!important}
+.lang-toggle{border-radius:var(--r-pill)!important}
+.lang-toggle button{border-radius:0!important}
+button:not(:disabled){transition:transform .12s ease,box-shadow .12s ease,background-color .15s ease}
+button:not(:disabled):active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){button{transition:none!important}button:active{transform:none!important}}
