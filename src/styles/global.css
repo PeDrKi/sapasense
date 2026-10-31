@@ -44,6 +44,7 @@ input[type='range']{width:100%;cursor:pointer;accent-color:#B85C2A}
   .act-bar{flex-wrap:nowrap!important;position:sticky;bottom:0;z-index:6;background:rgba(244,239,230,.96);backdrop-filter:blur(6px);padding:.6rem 0!important;margin:0 -1.75rem;padding-left:1.75rem!important;padding-right:1.75rem!important;border-top:1px solid rgba(26,25,22,.12);order:99}
   .act-bar>a,.act-bar>button{flex:1 1 auto;text-align:center;padding:.65rem .9rem!important;font-size:.82rem!important}
   .star-row{flex-direction:column;align-items:flex-start!important}
+  .star-row>span{flex:0 0 auto!important;min-width:0!important}
   .review-actions{flex-direction:column;align-items:stretch!important}
   .map-home{position:static!important;margin:.4rem 1rem 0 auto}
   .welcome-title{font-size:clamp(2.2rem,12vw,4.8rem)!important}

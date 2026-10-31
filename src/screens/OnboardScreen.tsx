@@ -5,7 +5,7 @@ import { Grain, StepBar,
 import LangToggle                from '../components/LangToggle'
 import { C }                     from '../styles/tokens'
 import { useT }                  from '../i18n'
-import { BUDGET_MIN, BUDGET_MAX, BUDGET_PRESETS, normalizeBudget, formatVnd, clampPeople, PEOPLE_MAX, budgetPerPerson, parseBudgetInput, clampBudget, sliderToBudget, budgetToSlider } from '../utils/budget'
+import { BUDGET_MIN, BUDGET_MAX, BUDGET_PRESETS, normalizeBudget, formatVnd, parseBudgetInput, clampBudget, sliderToBudget, budgetToSlider } from '../utils/budget'
 import { AREA_PRESETS, validOrigin } from '../utils/recommend'
 import { reverseGeocode } from '../utils/geocode'
 import { useLang } from '../i18n'
@@ -80,10 +80,9 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
   const t  = useT()
   const ob = t.onboard
   const [step, setStep] = useState(0)
-  const [ans,  setAns]  = useState<Draft>(() => ({ mood:null, budget:800000, people:1, time:null, group:null, mode:'tourist', focus:'all', ...(initial || {}) }))
+  const [ans,  setAns]  = useState<Draft>(() => ({ mood:null, budget:800000, time:null, group:null, mode:'tourist', focus:'all', ...(initial || {}) }))
   const [budgetText, setBudgetText] = useState('')
   const [budgetEditing, setBudgetEditing] = useState(false)
-  const peopleTouched = useRef(!!initial?.people && initial.people > 1)
   const [day,  setDay]  = useState(0)        // 0 = today, 1 = tomorrow
   const [hr,   setHr]   = useState('now')    // 'now' or an hour 6..21
 
@@ -112,8 +111,6 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
 
   const { lang: curLang } = useLang()
   const budgetVnd = normalizeBudget(ans.budget)
-  const people = clampPeople(ans.people)
-  const setPeople = (n: number) => { peopleTouched.current = true; setAns(a => ({ ...a, people: clampPeople(n) })) }
   const budgetFull = formatVnd(budgetVnd, curLang)
   const setBudget = (n: number) => { setAns(a => ({ ...a, budget: clampBudget(n) })); setBudgetEditing(false) }
   const commitBudgetText = () => { const n = parseBudgetInput(budgetText); if (n != null) setBudget(n); else setBudgetEditing(false) }
@@ -127,7 +124,8 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
     {
       q: ob.stepMode, hint: ob.hintMode,
       body: (
-        <div role="radiogroup" style={{ display:'grid', gap:9, marginBottom:'1.75rem' }}>
+        <div style={{ paddingBottom:'1.5rem' }}>
+        <div role="radiogroup" style={{ display:'grid', gap:9, marginBottom:'1.25rem' }}>
           {[
             { id:'tourist', icon:'✈️', label:ob.modeTLabel.replace('✈️ ',''), desc:ob.modeTDesc },
             { id:'local',   icon:'🏠', label:ob.modeLLabel.replace('🏠 ',''), desc:ob.modeLDesc },
@@ -135,6 +133,8 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
             <OptionCard key={m.id} icon={m.icon} label={m.label} desc={m.desc}
               selected={ans.mode===m.id} onSelect={() => setAns(a => ({...a, mode:m.id as Mode}))}/>
           ))}
+        </div>
+          <LocationPicker ob={ob} loc={ans.loc} onChange={loc => setAns(a => { const n = { ...a }; if (loc) n.loc = loc; else delete n.loc; return n })}/>
         </div>
       ),
     },
@@ -200,17 +200,6 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
                 style={{ padding:'0.35rem 0.75rem', fontSize:'0.74rem', cursor:'pointer', border:`1px solid ${budgetVnd===p?C.rust:C.border}`, background:budgetVnd===p?C.rustLight:'transparent', color:budgetVnd===p?C.rust:C.muted, fontFamily:'inherit' }}>{shortVnd(p)}</button>
             ))}
           </div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginTop:16, paddingTop:14, borderTop:`1px solid ${C.border}` }}>
-            <label htmlFor="people-input" style={{ fontSize:'0.85rem' }}>{ob.peopleLbl}</label>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <button type="button" aria-label="−" disabled={people <= 1} onClick={() => setPeople(people - 1)} style={{ width:36, height:36, fontSize:'1.1rem', cursor:'pointer', border:`1px solid ${C.border}`, background:C.card, color:C.ink }}>−</button>
-              <input id="people-input" type="text" inputMode="numeric" value={people}
-                onChange={e => { const d = e.target.value.replace(/\D/g, ''); if (d) setPeople(+d) }}
-                style={{ width:52, textAlign:'center', padding:'0.45rem 0', fontSize:'1rem', border:`1px solid ${C.border}`, background:C.card, color:C.ink, fontFamily:'inherit' }}/>
-              <button type="button" aria-label="+" disabled={people >= PEOPLE_MAX} onClick={() => setPeople(people + 1)} style={{ width:36, height:36, fontSize:'1.1rem', cursor:'pointer', border:`1px solid ${C.border}`, background:C.card, color:C.ink }}>+</button>
-            </div>
-          </div>
-          {people > 1 && <div style={{ fontSize:'0.78rem', color:C.rust, marginTop:8, textAlign:'right' }}>{ob.peoplePer(formatVnd(budgetPerPerson(budgetVnd, people), curLang))}</div>}
           <div style={{ fontSize:'0.68rem', color:C.muted, marginTop:10, lineHeight:1.5 }}>{ob.budgetNote}</div>
         </div>
       ),
@@ -236,7 +225,6 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
               {Array.from({ length:16 }, (_, i) => i + 6).map(h => <option key={h} value={h}>{String(h).padStart(2,'0')}:00</option>)}
             </select>
           </div>
-          <LocationPicker ob={ob} loc={ans.loc} onChange={loc => setAns(a => { const n = { ...a }; if (loc) n.loc = loc; else delete n.loc; return n })}/>
         </div>
       ),
     },
@@ -246,7 +234,7 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
         <div role="radiogroup" style={{ display:'grid', gap:9, marginBottom:'1.75rem' }}>
           {Object.entries(t.groups).map(([id, {label, desc}]) => (
             <OptionCard key={id} icon={groupIcons[id]} label={label} desc={desc}
-              selected={ans.group===id} onSelect={() => setAns(a => ({ ...a, group:id as Answers['group'], people: peopleTouched.current ? a.people : (id === 'solo' ? 1 : id === 'couple' ? 2 : a.people) }))}/>
+              selected={ans.group===id} onSelect={() => setAns(a => ({...a, group:id as Answers['group']}))}/>
           ))}
         </div>
       ),
