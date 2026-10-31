@@ -2,7 +2,7 @@
 import { isValidBudget } from './budget'
 import type { Answers, Plan, Focus } from '../types'
 
-const KEYS: (keyof Answers)[] = ['mood', 'budget', 'people', 'time', 'group', 'mode', 'focus', 'startHour', 'dayOffset']
+const KEYS: (keyof Answers)[] = ['mood', 'budget', 'people', 'time', 'group', 'mode', 'focus', 'startHour', 'dayOffset', 'fitness']
 const MOODS = ['calm', 'adventure', 'nostalgia', 'energy']
 const TIMES = ['2h', 'half', 'full']
 const GROUPS = ['solo', 'couple', 'friends', 'family', 'any']
@@ -27,6 +27,7 @@ export function decodePlan(hash: unknown): { answers: Answers; ids: string[]; st
     if (!Array.isArray(ids) || ids.some((i: unknown) => typeof i !== 'string')) return null
     const answers: Answers = { mood:a.mood, budget:a.budget, time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:(['food', 'cafe'].includes(a.focus) ? a.focus : 'all') as Focus }
     if (Number.isInteger(a.people) && a.people >= 1 && a.people <= 100) answers.people = a.people
+    if (a.fitness === 'limited') answers.fitness = 'limited'
     if (Number.isFinite(a.startHour)) answers.startHour = a.startHour
     if (Number.isInteger(a.dayOffset) && a.dayOffset >= 0 && a.dayOffset <= 1) answers.dayOffset = a.dayOffset
     return {

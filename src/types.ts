@@ -29,12 +29,13 @@ export interface Place extends RawPlace {
 export interface LatLng { lat: number; lng: number }
 /** A starting point chosen by the user: GPS fix or a preset area. */
 export interface Loc extends LatLng { src?: 'gps' | 'area'; area?: string; label?: string }
-export interface Weather { code?: number; temp?: number | string; icon?: string; label?: string }
+export interface Weather { code?: number; temp?: number | string; icon?: string; label?: string; precip?: number; visibility?: number }
 
 /** Everything the recommender needs to know about the user's wishes. */
 export interface Answers {
   mood: Mood
   budget: number            // TỔNG ngân sách (VND) cho cả nhóm; số 1..5 = mức cũ (mỗi người)
+  fitness?: 'normal' | 'limited'   // thể lực: 'limited' → bỏ các điểm đi bộ/leo vất vả
   people?: number           // số người đi (mặc định 1)
   time: TimeId
   group: GroupAnswer

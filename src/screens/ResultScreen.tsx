@@ -3,6 +3,9 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspen
 import { BtnPrimary, BtnSecondary }          from '../components/ui'
 const LeafletMap = lazy(() => import('../components/LeafletMap'))
 import { gsap, ScrollTrigger, reducedMotion, EASE } from '../utils/motion'
+import { savePlan } from '../utils/savedPlan'
+import { estimateTemp } from '../data/altitude'
+import { numTemp, fitsWeather, wxInput } from '../utils/weatherRules'
 import SafetyNote                         from '../components/SafetyNote'
 import PlaceImage                          from '../components/PlaceImage'
 import LangToggle                             from '../components/LangToggle'
@@ -35,8 +38,8 @@ function loadDone(day: string | undefined): string[] { try { const o = JSON.pars
 function saveDone(day: string | undefined, ids: string[]) { try { localStorage.setItem(LS_DONE, JSON.stringify({ day, ids })) } catch { /* ignore */ } }
 
 // ── Stop Card ─────────────────────────────────────────
-interface StopCardProps { stop: Stop; index: number; total?: number; mode: Mode; r: R; onSwap?: (id: string) => void; onHide?: (id: string) => void; onMove?: (id: string, dir: number) => void; state?: StopState; done?: boolean; onDone?: (id: string) => void; fav?: boolean; onFav?: (id: string) => void }
-function StopCard({ stop, index, total, mode, r, onSwap, onHide, onMove, state, done, onDone, fav, onFav }: StopCardProps) {
+interface StopCardProps { baseTemp?: number | null; stop: Stop; index: number; total?: number; mode: Mode; r: R; onSwap?: (id: string) => void; onHide?: (id: string) => void; onMove?: (id: string, dir: number) => void; state?: StopState; done?: boolean; onDone?: (id: string) => void; fav?: boolean; onFav?: (id: string) => void }
+function StopCard({ baseTemp, stop, index, total, mode, r, onSwap, onHide, onMove, state, done, onDone, fav, onFav }: StopCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -62,6 +65,7 @@ function StopCard({ stop, index, total, mode, r, onSwap, onHide, onMove, state, 
         <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, flexWrap:'wrap' }}>
           <span style={{ fontSize:'0.69rem', color:C.rust, letterSpacing:'0.07em', textTransform:'uppercase' }}>{stop.time}</span>
           {stop.distKm != null && <span style={{ fontSize:'0.67rem', color:C.muted }}>📍 {r.nearYou(stop.distKm)}</span>}
+          {baseTemp != null && estimateTemp((stop as any).area || '', baseTemp) != null && <span title="Ước tính theo độ cao (giảm ~0,6°C mỗi 100 m so với thị xã Sa Pa)" style={{ fontSize:'0.67rem', color:C.muted }}>🌡 ~{estimateTemp((stop as any).area || '', baseTemp)}°C</span>}
           {stop.displayTime && mode==='local' && (
             <span style={{ fontSize:'0.67rem', color:'#3D5C35' }}>{r.localTime} {stop.displayTime}</span>
           )}
@@ -200,6 +204,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
         out = recommend({ answers: withMemory(answers), wx })
       }
       setResult(out); setStatus('done')
+      savePlan(answers, out)
       if (out.stops?.length) noteShown(out.stops.map(x => x.id), out.dateISO)
       fetchStay(out.stops || [])
     } catch(err) {
@@ -272,6 +277,25 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
 
   const handleHide = (stopId: string) => { hidePlace(stopId); handleSwap(stopId); setNotice(r.hiddenNote); setTimeout(() => setNotice(''), 3500) }
   const regen = () => { seedRef.current += 1; generate() }
+
+  // One-touch replan: keep stops already visited or past, swap only upcoming stops that no longer fit the current weather
+  const handleReplan = () => {
+    if (!result) return
+    let cur = result
+    const rej = [...rejected]
+    let changed = 0
+    for (const stp of result.stops) {
+      const st = isToday ? stopState(stp, nowHour) : null
+      if (st === 'past' || st === 'now' || doneIds.includes(stp.id)) continue
+      if (fitsWeather(stp as any, wxInput(wx))) continue
+      const out = swapStop({ answers: withMemory(answers), wx, result: cur, stopId: stp.id, exclude: rej })
+      rej.push(stp.id)
+      if (out) { cur = out; changed++ }
+    }
+    if (changed) { setRejected(rej); setResult(cur); fetchStay(cur.stops) }
+    setNotice(changed ? `Đã đổi ${changed} điểm cho hợp thời tiết hiện tại (${wxStr}).` : 'Kế hoạch vẫn phù hợp với thời tiết hiện tại.')
+    setTimeout(() => setNotice(''), 4000)
+  }
 
   const dayKey = result?.dateISO
   useEffect(() => { if (dayKey) setDoneIds(loadDone(dayKey)) }, [dayKey])
@@ -414,6 +438,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
                 </button>
               ))}
               <div className="tab-spacer" style={{ flex:1 }}/>
+              <button className="tab-regen" onClick={handleReplan} title="Giữ các điểm đã qua, chỉ đổi điểm không còn hợp thời tiết" style={{ background:'none', border:'none', cursor:'pointer', fontSize:'0.75rem', color:C.rust, padding:'0.6rem 0.8rem 0.6rem 0', fontFamily:'inherit' }}>⛅ Thời tiết đổi? Đổi kế hoạch</button>
               <button className="tab-regen" onClick={regen} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'0.75rem', color:C.muted, padding:'0.6rem 0', fontFamily:"'Be Vietnam Pro',sans-serif" }}>{r.regen}</button>
             </div>
 
@@ -465,7 +490,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
                 )}
                 {result.stops?.map((stop,i) => (
                   <div key={stop.id||i}>
-                    <StopCard stop={stop} index={i} mode={answers.mode || 'tourist'} r={r} total={result.stops.length} state={stateOf(i)} done={doneIds.includes(stop.id)} onDone={isToday ? toggleDone : undefined} onSwap={result.stops.length > 1 ? handleSwap : undefined} onHide={result.stops.length > 1 ? handleHide : undefined} fav={favs.includes(stop.id)} onFav={handleFav} onMove={result.stops.length > 1 ? handleMove : undefined}/>
+                    <StopCard baseTemp={numTemp({ temp: wx?.temp })} stop={stop} index={i} mode={answers.mode || 'tourist'} r={r} total={result.stops.length} state={stateOf(i)} done={doneIds.includes(stop.id)} onDone={isToday ? toggleDone : undefined} onSwap={result.stops.length > 1 ? handleSwap : undefined} onHide={result.stops.length > 1 ? handleHide : undefined} fav={favs.includes(stop.id)} onFav={handleFav} onMove={result.stops.length > 1 ? handleMove : undefined}/>
                     {i < result.stops.length - 1 && (() => { const l = legInfo(stop, result.stops[i+1]); return (
                       <div aria-hidden="true" style={{ display:'flex', alignItems:'center', gap:8, margin:'0.45rem 0 0.1rem 0.85rem', fontSize:'0.7rem', color:C.muted }}>
                         <span style={{ width:1, height:18, background:C.border, display:'inline-block', marginLeft:14 }}/>

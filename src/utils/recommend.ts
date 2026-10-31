@@ -4,6 +4,8 @@ import { mergeSeasonsIntoPlaces } from '../data/seasons'
 import { mergeLocalMode }         from '../data/localMode'
 import { isOpen, tipFor }         from '../data/schedule'
 import { RAINY_CODES }            from '../data/constants'
+import { isStrenuous } from '../data/fitness'
+import { wxLevel, weatherDelta, type WxInput } from './weatherRules'
 import type { Answers, Place, Plan, Stop, TimedPlace, LatLng, Weather, TimeId, Focus, Mood, Group, GroupAnswer, Mode, Warn, Why } from '../types'
 
 export interface Start { date: Date; startHour: number; nextDay: boolean }
@@ -59,10 +61,10 @@ export function resolveStart(now: Date): Start {
   return { date, startHour, nextDay }
 }
 
-export function hardFilter(places: Place[], { budgetVal, timeId, wxCode, hour, date }: { budgetVal: number; timeId: string; wxCode: number; hour: number; date?: Date }): Place[] {
+export function hardFilter(places: Place[], { budgetVal, timeId, wxCode, hour, date, precip, visibility }: { budgetVal: number; timeId: string; wxCode: number; hour: number; date?: Date; precip?: number; visibility?: number }): Place[] {
   const budget  = getBudgetAmount(budgetVal)
   const tod     = getTimeOfDay(hour)
-  const isRainy = isRainyCode(wxCode)
+  const level   = wxLevel({ code: wxCode, precip, visibility })
 
   return places.filter(p => {
     if (p.type === 'lodging') return false   // hotels are listed under "Lưu trú", never scheduled as a stop
@@ -70,12 +72,13 @@ export function hardFilter(places: Place[], { budgetVal, timeId, wxCode, hour, d
     if (p.cost > budget * 0.6) return false
     if (timeId !== 'full' && p.duration > (STOPS_COUNT[timeId] || STOPS_COUNT.half).minutes - 45) return false   // must leave room for at least one more short stop
     if (timeId !== 'full' && !p.timeOfDay.includes('any') && !p.timeOfDay.includes(tod)) return false
-    if (isRainy && !p.indoor && p.cost > 0) return false
+    if (level === 'severe' && !p.indoor) return false
+    if (level === 'rain' && !p.indoor && (p.cost > 0 || p.type === 'nature')) return false
     return true
   })
 }
 
-export function scorePlace(place: Place, { mood, group, budgetVal, hour }: { mood: Mood; group: GroupAnswer; budgetVal: number; hour: number }): number {
+export function scorePlace(place: Place, { mood, group, budgetVal, hour, wx }: { mood: Mood; group: GroupAnswer; budgetVal: number; hour: number; wx?: WxInput }): number {
   const budget = getBudgetAmount(budgetVal)
   const tod    = getTimeOfDay(hour)
 
@@ -92,7 +95,7 @@ export function scorePlace(place: Place, { mood, group, budgetVal, hour }: { moo
   const timeScore = place.timeOfDay.includes('any') ? 70
     : place.timeOfDay.includes(tod) ? 100 : 20
 
-  return (
+  return (weatherDelta(place, wx || {})) + (
     moodScore   * WEIGHTS.mood      +
     groupScore  * WEIGHTS.group     +
     budgetScore * WEIGHTS.budget    +
@@ -339,11 +342,13 @@ function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answer
   const placesWithMode = mergeLocalMode(mergeSeasonsIntoPlaces(places), mode)
   const localBonus = (p: Place) => mode !== 'local' ? 0 : ((p.localScore || 1) - 1) * 4 + (p.hiddenGem ? 10 : 0)
 
-  const focusOk = (p: Place) => focus === 'all' || p.type === focus
-  let filtered = hardFilter(placesWithMode.filter(focusOk), { budgetVal, timeId, wxCode, hour, date })
+  const focusOk = (p: Place) => (focus === 'all' || p.type === focus) && !(answers.fitness === 'limited' && isStrenuous(p.id))
+  let filtered = hardFilter(placesWithMode.filter(focusOk), { budgetVal, timeId, wxCode, hour, date, precip: wx?.precip, visibility: wx?.visibility })
   if (filtered.length < target) {
     // relax budget/time but never opening days
-    filtered = placesWithMode.filter(p => focusOk(p) && p.cost <= getBudgetAmount(budgetVal) * 0.8 && isOpen(p.id, date, hour))
+    const lvl = wxLevel({ code: wxCode, precip: wx?.precip, visibility: wx?.visibility })
+    const wxOk = (p: Place) => lvl === 'ok' || p.indoor || (lvl === 'rain' && p.cost === 0 && p.type !== 'nature')
+    filtered = placesWithMode.filter(p => focusOk(p) && p.type !== 'lodging' && wxOk(p) && p.cost <= getBudgetAmount(budgetVal) * 0.8 && isOpen(p.id, date, hour))
   }
   filtered = filtered.filter(p => !exclude.includes(p.id))
   const hidden = new Set(answers.hidden || [])
@@ -357,7 +362,7 @@ function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answer
   const recent = new Set(answers.recent || []), visited = new Set(answers.visited || []), favs = new Set(answers.favs || [])
   const scored = filtered.map(place => ({
     place,
-    score: scorePlace(place, { mood, group, budgetVal, hour })
+    score: scorePlace(place, { mood, group, budgetVal, hour, wx: { code: wxCode, precip: wx?.precip, visibility: wx?.visibility, temp: wx?.temp } })
          + (place.bestMonths?.includes(month) ? 8 : 0)
          + (place.peakMonths?.length && place.peakMonths.length < (place.bestMonths?.length || 12) && place.peakMonths.includes(month) ? 6 : 0)
          + localBonus(place)

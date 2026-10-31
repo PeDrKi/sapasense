@@ -20,18 +20,19 @@ import './styles/global.css'
 const isAdminUrl = () => window.location.hash === '#admin' || /\/admin\/?$/.test(window.location.pathname)
 type Page = 'welcome' | 'explore' | 'map-preview' | 'onboard' | 'result' | 'mine' | 'admin'
 
+import { loadSavedPlan } from './utils/savedPlan'
 import { normalizeBudget, clampPeople } from './utils/budget'
 const SS_KEY = 'ss_session'
 const LAST_KEY = 'ss_last'
 function loadLast(): Answers | null {
   try {
     const a = JSON.parse(localStorage.getItem(LAST_KEY) || 'null')
-    if (a && a.mood && a.time && a.group && Number.isInteger(a.budget)) return { mood:a.mood, budget:normalizeBudget(a.budget), people:clampPeople(a.people), time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:['food', 'cafe'].includes(a.focus) ? a.focus : 'all' }
+    if (a && a.mood && a.time && a.group && Number.isInteger(a.budget)) return { mood:a.mood, budget:normalizeBudget(a.budget), people:clampPeople(a.people), time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:['food', 'cafe'].includes(a.focus) ? a.focus : 'all', ...(a.fitness === 'limited' ? { fitness:'limited' as const } : {}) }
   } catch { /* ignore */ }
   return null
 }
 function saveLast(a: Answers) {
-  try { localStorage.setItem(LAST_KEY, JSON.stringify({ mood:a.mood, budget:a.budget, people:a.people || 1, time:a.time, group:a.group, mode:a.mode, focus:a.focus || 'all' })) } catch { /* ignore */ }
+  try { localStorage.setItem(LAST_KEY, JSON.stringify({ mood:a.mood, budget:a.budget, people:a.people || 1, time:a.time, group:a.group, mode:a.mode, focus:a.focus || 'all', fitness:a.fitness })) } catch { /* ignore */ }
 }
 
 function loadShared() {
@@ -62,24 +63,27 @@ export default function App() {
   useEffect(() => startAutoSync(), [])
   useEffect(() => { refreshRemotePlaces() }, [])
 
-  // Fetch Sa Pa weather on mount and refresh every 30 minutes
+  // Fetch Sa Pa weather on mount and refresh every 10 minutes
   useEffect(() => {
     const load = async () => {
       try {
-        const res  = await fetch('https://api.open-meteo.com/v1/forecast?latitude=22.3364&longitude=103.8438&current_weather=true&timezone=Asia%2FBangkok')
+        const res  = await fetch('https://api.open-meteo.com/v1/forecast?latitude=22.3364&longitude=103.8438&current=temperature_2m,precipitation,weather_code,visibility&timezone=Asia%2FBangkok')
         if (!res.ok) throw new Error('weather ' + res.status)
         const data = await res.json()
-        const code = data.current_weather.weathercode
-        const temp = Math.round(data.current_weather.temperature)
-        setWx(prev => (prev && prev.code === code && prev.temp === temp)
+        const cur  = data.current
+        const code = cur.weather_code
+        const temp = Math.round(cur.temperature_2m)
+        const precip = Number(cur.precipitation) || 0
+        const visibility = Number.isFinite(Number(cur.visibility)) ? Number(cur.visibility) : undefined
+        setWx(prev => (prev && prev.code === code && prev.temp === temp && prev.precip === precip && prev.visibility === visibility)
           ? prev
-          : { ...(WX_MAP[code as keyof typeof WX_MAP] || { icon:'🌤', label:'Bình thường' }), temp, code })
+          : { ...(WX_MAP[code as keyof typeof WX_MAP] || { icon:'🌤', label:'Bình thường' }), temp, code, precip, visibility })
       } catch {
         setWx(prev => prev || { icon:'🌤', label:'Sa Pa', temp:'--' })
       }
     }
     load()
-    const id = setInterval(load, 30 * 60 * 1000)
+    const id = setInterval(load, 10 * 60 * 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -91,6 +95,7 @@ export default function App() {
   }, [])
 
   const goOnboard = () => setPage('onboard')
+  const goSaved = () => { const sp = loadSavedPlan(); if (!sp) return; setShared({ answers: sp.answers, ids: sp.ids, startHour: sp.startHour, dateISO: sp.dateISO } as any); setAnswers(sp.answers); setPage('result') }
   const goResult  = (ans: Answers) => { saveLast(ans); setShared(null); setAnswers(ans); setPage('result') }
   const goQuick   = () => {
     setShared(null); setAnswers(inferAnswers({ now: new Date(), wx, last: loadLast() })); setPage('result')
@@ -122,7 +127,7 @@ export default function App() {
     <>
       {showWeather && <WeatherBadge wx={wx}/>}
 
-      {page === 'welcome'     && <WelcomeScreen    onStart={goOnboard}   onMap={goMap} onExplore={goExplore} onQuick={goQuick} onMine={goMine}/>}
+      {page === 'welcome'     && <WelcomeScreen    onStart={goOnboard}   onMap={goMap} onExplore={goExplore} onQuick={goQuick} onMine={goMine} onSaved={loadSavedPlan() ? goSaved : undefined}/>}
       {page === 'explore'     && <Suspense fallback={<div style={{ padding:'3rem', textAlign:'center' }}>…</div>}><ExploreScreen wx={wx} onHome={goHome} onPlan={goQuick}/></Suspense>}
       {page === 'map-preview' && <Suspense fallback={<div style={{ padding:'3rem', textAlign:'center' }}>…</div>}><MapPreviewScreen onStart={goOnboard} onHome={goHome}/></Suspense>}
       {page === 'onboard'     && <OnboardScreen    onDone={goResult} initial={loadLast()}/>}

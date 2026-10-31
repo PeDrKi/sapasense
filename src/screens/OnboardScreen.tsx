@@ -236,6 +236,11 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
             <OptionCard key={id} icon={groupIcons[id]} label={label} desc={desc}
               selected={ans.group===id} onSelect={() => setAns(a => ({...a, group:id as Answers['group']}))}/>
           ))}
+          <div style={{ marginTop:10, fontSize:'0.78rem', color:C.muted, letterSpacing:'0.04em' }}>{ob.fitnessQ}</div>
+          <OptionCard icon="🚶" label={ob.fitnessNormal} desc=""
+            selected={ans.fitness!=='limited'} onSelect={() => setAns(a => ({...a, fitness:'normal'}))}/>
+          <OptionCard icon="🧓" label={ob.fitnessLimited} desc=""
+            selected={ans.fitness==='limited'} onSelect={() => setAns(a => ({...a, fitness:'limited'}))}/>
         </div>
       ),
     },

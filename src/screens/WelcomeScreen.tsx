@@ -7,9 +7,9 @@ import { gsap, reducedMotion, EASE } from '../utils/motion'
 import { getPlaces }         from '../data/placeStore'
 import { hiddenCount, clearHidden, favIds } from '../utils/memory'
 
-interface Props { onStart: () => void; onAdmin?: () => void; onMap: () => void; onExplore?: () => void; onQuick?: () => void; onMine: () => void }
+interface Props { onStart: () => void; onAdmin?: () => void; onMap: () => void; onExplore?: () => void; onQuick?: () => void; onMine: () => void; onSaved?: () => void }
 
-export default function WelcomeScreen({ onStart, onMap, onExplore, onQuick, onMine }: Props) {
+export default function WelcomeScreen({ onStart, onMap, onExplore, onQuick, onMine, onSaved }: Props) {
   const t = useT().welcome
   const { lang } = useLang()
   const [hid, setHid] = useState(hiddenCount)
@@ -53,6 +53,9 @@ export default function WelcomeScreen({ onStart, onMap, onExplore, onQuick, onMi
         <button className="w-btn" onClick={onStart} style={{ position:'relative', zIndex:1, marginTop:'0.9rem', background:'none', border:`1px solid ${C.border}`, color:C.ink, cursor:'pointer', fontSize:'0.88rem', padding:'0.65rem 1.4rem', fontFamily:"'Be Vietnam Pro',sans-serif" }}>
           {t.pickCta}
         </button>
+      )}
+      {onSaved && (
+        <button type="button" className="w-btn" onClick={onSaved} style={{ position:'relative', zIndex:1, marginTop:'0.9rem', background:'none', border:'none', color:C.ink, cursor:'pointer', fontSize:'0.82rem', textDecoration:'underline', fontFamily:"'Be Vietnam Pro',sans-serif" }}>{lang === 'EN' ? '📴 Reopen last saved plan (works offline)' : '📴 Mở lại lộ trình đã lưu (xem được khi mất mạng)'}</button>
       )}
       {onExplore && (
         <button type="button" className="w-btn" onClick={onExplore} style={{ position:'relative', zIndex:1, marginTop:'0.9rem', background:'none', border:'none', color:C.ink, cursor:'pointer', fontSize:'0.82rem', textDecoration:'underline', fontFamily:"'Be Vietnam Pro',sans-serif" }}>{lang === 'EN' ? '🧭 Explore places' : '🧭 Khám phá địa điểm'}</button>
