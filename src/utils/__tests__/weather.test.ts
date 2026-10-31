@@ -54,3 +54,35 @@ describe('fitness', () => {
     expect(dec?.answers.fitness).toBe('limited')
   })
 })
+
+import { packingAdvice } from '../packing'
+import { parseForecast } from '../forecast'
+import { allergyHits } from '../../data/health'
+import { MOTION_KM, AREA_PRESETS, distanceKm } from '../recommend'
+
+describe('packing advice', () => {
+  it('cold + rainy day → warm layers and umbrella/poncho', () => {
+    const a = packingAdvice({ tMax:11, tMin:4, rainProb:80, rainMm:6, code:63, uv:1, wind:10 })
+    expect(a.outfit).toMatch(/lạnh/i)
+    expect(a.items.join(' ')).toMatch(/áo mưa|ô/)
+  })
+  it('hot UV day → sunscreen', () => {
+    expect(packingAdvice({ tMax:27, tMin:18, rainProb:5, rainMm:0, code:0, uv:8, wind:5 }).items.join(' ')).toMatch(/chống nắng/)
+  })
+  it('parses open-meteo daily', () => {
+    const d = parseForecast({ daily:{ time:['2026-11-01'], weather_code:[3], temperature_2m_max:[18.4], temperature_2m_min:[11.2], precipitation_probability_max:[40], precipitation_sum:[0.5], uv_index_max:[5], wind_speed_10m_max:[12] } })
+    expect(d[0]).toMatchObject({ tMax:18, tMin:11, rainProb:40 })
+  })
+})
+describe('health personalization', () => {
+  it('detects seafood in a salmon restaurant', () => {
+    expect(allergyHits({ name:'Nhà hàng Cá hồi Song Nhi', desc:'' }, ['seafood'])).toEqual(['seafood'])
+    expect(allergyHits({ name:'Cafe', desc:'Cà phê đen' }, ['seafood'])).toEqual([])
+  })
+  it('motion sickness keeps every stop near the centre', () => {
+    for (let seed = 0; seed < 8; seed++) {
+      const out = recommend({ answers: { ...base, motionSick:true, seed }, wx:{ code:0, temp:20 }, now: noon })
+      for (const s of out.stops) expect(distanceKm(s, AREA_PRESETS.trungtam)).toBeLessThanOrEqual(MOTION_KM)
+    }
+  })
+})

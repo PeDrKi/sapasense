@@ -36,6 +36,8 @@ export interface Answers {
   mood: Mood
   budget: number            // TỔNG ngân sách (VND) cho cả nhóm; số 1..5 = mức cũ (mỗi người)
   fitness?: 'normal' | 'limited'   // thể lực: 'limited' → bỏ các điểm đi bộ/leo vất vả
+  allergies?: string[]             // 'seafood' | 'peanut' | 'dairy' | 'gluten' | 'egg'
+  motionSick?: boolean             // dễ say xe → lộ trình gần, ít đường đèo
   people?: number           // số người đi (mặc định 1)
   time: TimeId
   group: GroupAnswer

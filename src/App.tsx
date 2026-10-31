@@ -20,6 +20,7 @@ import './styles/global.css'
 const isAdminUrl = () => window.location.hash === '#admin' || /\/admin\/?$/.test(window.location.pathname)
 type Page = 'welcome' | 'explore' | 'map-preview' | 'onboard' | 'result' | 'mine' | 'admin'
 
+import { ALLERGENS } from './data/health'
 import { loadSavedPlan } from './utils/savedPlan'
 import { normalizeBudget, clampPeople } from './utils/budget'
 const SS_KEY = 'ss_session'
@@ -27,12 +28,12 @@ const LAST_KEY = 'ss_last'
 function loadLast(): Answers | null {
   try {
     const a = JSON.parse(localStorage.getItem(LAST_KEY) || 'null')
-    if (a && a.mood && a.time && a.group && Number.isInteger(a.budget)) return { mood:a.mood, budget:normalizeBudget(a.budget), people:clampPeople(a.people), time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:['food', 'cafe'].includes(a.focus) ? a.focus : 'all', ...(a.fitness === 'limited' ? { fitness:'limited' as const } : {}) }
+    if (a && a.mood && a.time && a.group && Number.isInteger(a.budget)) return { mood:a.mood, budget:normalizeBudget(a.budget), people:clampPeople(a.people), time:a.time, group:a.group, mode:a.mode === 'local' ? 'local' : 'tourist', focus:['food', 'cafe'].includes(a.focus) ? a.focus : 'all', ...(a.fitness === 'limited' ? { fitness:'limited' as const } : {}), ...(a.motionSick ? { motionSick:true } : {}), ...(Array.isArray(a.allergies) && a.allergies.length ? { allergies:a.allergies.filter((x: unknown) => typeof x === 'string' && x in ALLERGENS) } : {}) }
   } catch { /* ignore */ }
   return null
 }
 function saveLast(a: Answers) {
-  try { localStorage.setItem(LAST_KEY, JSON.stringify({ mood:a.mood, budget:a.budget, people:a.people || 1, time:a.time, group:a.group, mode:a.mode, focus:a.focus || 'all', fitness:a.fitness })) } catch { /* ignore */ }
+  try { localStorage.setItem(LAST_KEY, JSON.stringify({ mood:a.mood, budget:a.budget, people:a.people || 1, time:a.time, group:a.group, mode:a.mode, focus:a.focus || 'all', fitness:a.fitness, motionSick:a.motionSick, allergies:a.allergies })) } catch { /* ignore */ }
 }
 
 function loadShared() {

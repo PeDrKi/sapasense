@@ -4,6 +4,7 @@ import { mergeSeasonsIntoPlaces } from '../data/seasons'
 import { mergeLocalMode }         from '../data/localMode'
 import { isOpen, tipFor }         from '../data/schedule'
 import { RAINY_CODES }            from '../data/constants'
+import { allergyHits } from '../data/health'
 import { isStrenuous } from '../data/fitness'
 import { wxLevel, weatherDelta, type WxInput } from './weatherRules'
 import type { Answers, Place, Plan, Stop, TimedPlace, LatLng, Weather, TimeId, Focus, Mood, Group, GroupAnswer, Mode, Warn, Why } from '../types'
@@ -329,6 +330,8 @@ function jitter(seed: string, id: string): number {
   return ((h >>> 0) % 10000) / 10000
 }
 export const JITTER = 22
+/** Dễ say xe: chỉ lấy điểm trong bán kính này quanh thị xã Sa Pa (ít đường đèo dài). */
+export const MOTION_KM = 9
 
 function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answers; wx: Weather | null; start: Start; places: Place[]; exclude?: string[] }): PlanCtx {
   const { mood, time: timeId, group, mode = 'tourist', focus = 'all' } = answers
@@ -343,6 +346,7 @@ function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answer
   const localBonus = (p: Place) => mode !== 'local' ? 0 : ((p.localScore || 1) - 1) * 4 + (p.hiddenGem ? 10 : 0)
 
   const focusOk = (p: Place) => (focus === 'all' || p.type === focus) && !(answers.fitness === 'limited' && isStrenuous(p.id))
+    && !(answers.motionSick && distanceKm(p, AREA_PRESETS.trungtam) > MOTION_KM)
   let filtered = hardFilter(placesWithMode.filter(focusOk), { budgetVal, timeId, wxCode, hour, date, precip: wx?.precip, visibility: wx?.visibility })
   if (filtered.length < target) {
     // relax budget/time but never opening days
@@ -368,6 +372,7 @@ function prepare({ answers, wx, start, places, exclude = [] }: { answers: Answer
          + localBonus(place)
          + jitter(`${localISO(date)}|${getTimeOfDay(hour)}|${answers.seed || 0}|${timeId}`, place.id) * JITTER
          + (favs.has(place.id) ? 10 : 0)
+         - (allergyHits(place, answers.allergies).length ? 30 : 0)
          - (recent.has(place.id) ? 14 : 0)
          - (visited.has(place.id) ? (place.type === 'food' || place.type === 'cafe' ? 8 : 24) : 0),
   }))

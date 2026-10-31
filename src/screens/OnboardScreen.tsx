@@ -9,6 +9,7 @@ import { BUDGET_MIN, BUDGET_MAX, BUDGET_PRESETS, normalizeBudget, formatVnd, par
 import { AREA_PRESETS, validOrigin } from '../utils/recommend'
 import { reverseGeocode } from '../utils/geocode'
 import { useLang } from '../i18n'
+import { ALLERGENS } from '../data/health'
 import { getPlaces }              from '../data/placeStore'
 import type { Answers, Loc, Mode, Focus, TimeId } from '../types'
 
@@ -79,6 +80,7 @@ type Draft = Omit<Answers, 'mood' | 'time' | 'group'> & { mood: Answers['mood'] 
 export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers) => void; initial?: Partial<Answers> | null }) {
   const t  = useT()
   const ob = t.onboard
+  const { lang } = useLang()
   const [step, setStep] = useState(0)
   const [ans,  setAns]  = useState<Draft>(() => ({ mood:null, budget:800000, time:null, group:null, mode:'tourist', focus:'all', ...(initial || {}) }))
   const [budgetText, setBudgetText] = useState('')
@@ -97,7 +99,7 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
     return () => ctx.revert()
   }, [step])
 
-  const canNext = [true, true, !!ans.mood, true, !!ans.time, !!ans.group]
+  const canNext = [true, true, !!ans.mood, true, !!ans.time, !!ans.group, true]
   const LAST    = canNext.length - 1
   const finish  = () => {
     const out = { ...ans } as Answers
@@ -236,11 +238,30 @@ export default function OnboardScreen({ onDone, initial }: { onDone: (a: Answers
             <OptionCard key={id} icon={groupIcons[id]} label={label} desc={desc}
               selected={ans.group===id} onSelect={() => setAns(a => ({...a, group:id as Answers['group']}))}/>
           ))}
-          <div style={{ marginTop:10, fontSize:'0.78rem', color:C.muted, letterSpacing:'0.04em' }}>{ob.fitnessQ}</div>
-          <OptionCard icon="🚶" label={ob.fitnessNormal} desc=""
-            selected={ans.fitness!=='limited'} onSelect={() => setAns(a => ({...a, fitness:'normal'}))}/>
-          <OptionCard icon="🧓" label={ob.fitnessLimited} desc=""
-            selected={ans.fitness==='limited'} onSelect={() => setAns(a => ({...a, fitness:'limited'}))}/>
+        </div>
+      ),
+    },
+    {
+      q: ob.stepHealth, hint: ob.hintHealth,
+      body: (
+        <div style={{ display:'grid', gap:9, marginBottom:'1.75rem' }}>
+          <div style={{ fontSize:'0.78rem', color:C.muted, letterSpacing:'0.04em' }}>{ob.fitnessQ}</div>
+          <div role="radiogroup" style={{ display:'grid', gap:9 }}>
+            <OptionCard icon="🚶" label={ob.fitnessNormal} desc="" selected={ans.fitness!=='limited'} onSelect={() => setAns(a => ({...a, fitness:'normal'}))}/>
+            <OptionCard icon="🧓" label={ob.fitnessLimited} desc="" selected={ans.fitness==='limited'} onSelect={() => setAns(a => ({...a, fitness:'limited'}))}/>
+          </div>
+          <div style={{ fontSize:'0.78rem', color:C.muted, letterSpacing:'0.04em', marginTop:6 }}>{ob.motionQ}</div>
+          <div role="radiogroup" style={{ display:'grid', gap:9 }}>
+            <OptionCard icon="🚗" label={ob.motionNo} desc="" selected={!ans.motionSick} onSelect={() => setAns(a => ({...a, motionSick:false}))}/>
+            <OptionCard icon="🤢" label={ob.motionYes} desc={ob.motionYesDesc} selected={!!ans.motionSick} onSelect={() => setAns(a => ({...a, motionSick:true}))}/>
+          </div>
+          <div style={{ fontSize:'0.78rem', color:C.muted, letterSpacing:'0.04em', marginTop:6 }}>{ob.allergyQ}</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {Object.entries(ALLERGENS).map(([id, al]) => { const on = (ans.allergies || []).includes(id); return (
+              <button key={id} type="button" aria-pressed={on} onClick={() => setAns(a => { const cur = a.allergies || []; return { ...a, allergies: on ? cur.filter(x => x !== id) : [...cur, id] } })}
+                style={{ padding:'0.5rem 0.9rem', fontSize:'0.82rem', border:`1px solid ${on?C.rust:C.border}`, background:on?C.rustLight:C.card, cursor:'pointer', fontFamily:'inherit', color:C.ink }}>{on ? '✓ ' : ''}{lang === 'EN' ? al.labelEn : al.label}</button>) })}
+          </div>
+          <div style={{ fontSize:'0.72rem', color:C.muted }}>{ob.allergyNote}</div>
         </div>
       ),
     },

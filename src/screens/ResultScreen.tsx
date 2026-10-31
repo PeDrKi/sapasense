@@ -3,6 +3,8 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspen
 import { BtnPrimary, BtnSecondary }          from '../components/ui'
 const LeafletMap = lazy(() => import('../components/LeafletMap'))
 import { gsap, ScrollTrigger, reducedMotion, EASE } from '../utils/motion'
+import WeatherPanel from '../components/WeatherPanel'
+import { allergyHits, ALLERGENS } from '../data/health'
 import { savePlan } from '../utils/savedPlan'
 import { estimateTemp } from '../data/altitude'
 import { numTemp, fitsWeather, wxInput } from '../utils/weatherRules'
@@ -38,8 +40,8 @@ function loadDone(day: string | undefined): string[] { try { const o = JSON.pars
 function saveDone(day: string | undefined, ids: string[]) { try { localStorage.setItem(LS_DONE, JSON.stringify({ day, ids })) } catch { /* ignore */ } }
 
 // ── Stop Card ─────────────────────────────────────────
-interface StopCardProps { baseTemp?: number | null; stop: Stop; index: number; total?: number; mode: Mode; r: R; onSwap?: (id: string) => void; onHide?: (id: string) => void; onMove?: (id: string, dir: number) => void; state?: StopState; done?: boolean; onDone?: (id: string) => void; fav?: boolean; onFav?: (id: string) => void }
-function StopCard({ baseTemp, stop, index, total, mode, r, onSwap, onHide, onMove, state, done, onDone, fav, onFav }: StopCardProps) {
+interface StopCardProps { allergies?: string[]; baseTemp?: number | null; stop: Stop; index: number; total?: number; mode: Mode; r: R; onSwap?: (id: string) => void; onHide?: (id: string) => void; onMove?: (id: string, dir: number) => void; state?: StopState; done?: boolean; onDone?: (id: string) => void; fav?: boolean; onFav?: (id: string) => void }
+function StopCard({ allergies, baseTemp, stop, index, total, mode, r, onSwap, onHide, onMove, state, done, onDone, fav, onFav }: StopCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -71,6 +73,10 @@ function StopCard({ baseTemp, stop, index, total, mode, r, onSwap, onHide, onMov
           )}
         </div>
         {stop.warn && <div role="note" style={{ fontSize:'0.72rem', color:'#9A5B00', background:'rgba(232,160,32,0.12)', padding:'0.25rem 0.55rem', marginBottom:6, display:'inline-block' }}>{stop.warn==='closed' ? r.warnClosed : stop.warn==='late' ? r.warnLate : r.warnHours}</div>}
+        {(() => { if (!allergies?.length || (stop.type !== 'food' && stop.type !== 'cafe')) return null; const hits = allergyHits(stop, allergies); return (
+          <div role="note" style={{ fontSize:'0.72rem', color: hits.length ? '#9A3B00' : C.muted, background: hits.length ? 'rgba(200,70,20,0.1)' : 'rgba(0,0,0,0.04)', padding:'0.25rem 0.55rem', marginBottom:6, display:'inline-block' }}>
+            {hits.length ? `⚠ Có thể có ${hits.map(h => ALLERGENS[h].label.toLowerCase()).join(', ')} — báo nhân viên về dị ứng của bạn trước khi gọi món.` : '🩺 Hãy báo nhân viên về dị ứng của bạn trước khi gọi món.'}
+          </div>) })()}
         <div style={{ fontSize:'0.81rem', color:C.muted, lineHeight:1.65 }}>{stop.desc}</div>
         {stop.tip && (
           <div style={{ fontSize:'0.75rem', color:C.muted, fontStyle:'italic', marginTop:6, paddingTop:6, borderTop:`1px solid ${C.border}` }}>💡 {stop.tip}</div>
@@ -427,6 +433,8 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
               </div>
             )}
 
+            {status === 'done' && <WeatherPanel wx={wx} dateISO={result?.dateISO} limitedFitness={answers.fitness === 'limited'} motionSick={answers.motionSick}/>}
+
             {/* TAB BAR */}
             <div className="tab-bar" style={{ display:'flex', borderBottom:`1px solid ${C.border}`, marginBottom:'1.25rem' }}>
               {tabs.map(tb => (
@@ -490,7 +498,7 @@ export default function ResultScreen({ answers, wx, onRestart, onAdjust, shared 
                 )}
                 {result.stops?.map((stop,i) => (
                   <div key={stop.id||i}>
-                    <StopCard baseTemp={numTemp({ temp: wx?.temp })} stop={stop} index={i} mode={answers.mode || 'tourist'} r={r} total={result.stops.length} state={stateOf(i)} done={doneIds.includes(stop.id)} onDone={isToday ? toggleDone : undefined} onSwap={result.stops.length > 1 ? handleSwap : undefined} onHide={result.stops.length > 1 ? handleHide : undefined} fav={favs.includes(stop.id)} onFav={handleFav} onMove={result.stops.length > 1 ? handleMove : undefined}/>
+                    <StopCard allergies={answers.allergies} baseTemp={numTemp({ temp: wx?.temp })} stop={stop} index={i} mode={answers.mode || 'tourist'} r={r} total={result.stops.length} state={stateOf(i)} done={doneIds.includes(stop.id)} onDone={isToday ? toggleDone : undefined} onSwap={result.stops.length > 1 ? handleSwap : undefined} onHide={result.stops.length > 1 ? handleHide : undefined} fav={favs.includes(stop.id)} onFav={handleFav} onMove={result.stops.length > 1 ? handleMove : undefined}/>
                     {i < result.stops.length - 1 && (() => { const l = legInfo(stop, result.stops[i+1]); return (
                       <div aria-hidden="true" style={{ display:'flex', alignItems:'center', gap:8, margin:'0.45rem 0 0.1rem 0.85rem', fontSize:'0.7rem', color:C.muted }}>
                         <span style={{ width:1, height:18, background:C.border, display:'inline-block', marginLeft:14 }}/>
