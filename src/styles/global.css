@@ -80,3 +80,6 @@ input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),select,text
 button:not(:disabled){transition:transform .12s ease,box-shadow .12s ease,background-color .15s ease}
 button:not(:disabled):active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){button{transition:none!important}button:active{transform:none!important}}
+
+/* weather panel day cards stay card-shaped despite the global rounded-button rule */
+button.wp-day{border-radius:14px !important}

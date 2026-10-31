@@ -36,9 +36,12 @@ export default function WelcomeScreen({ onStart, onMap, onExplore, onQuick, onMi
       <div style={{ position:'fixed', top:'1.25rem', left:'1.25rem', zIndex:100 }}>
         <LangToggle/>
       </div>
-      <div className="w-orb" style={{ position:'absolute', top:'10%', left:'7%', width:110, height:110, borderRadius:'50%', border:`1px solid ${C.border}`, opacity:.45 }}/>
-      <div className="w-orb" style={{ position:'absolute', bottom:'12%', right:'8%', width:72, height:72, borderRadius:'50%', border:`1px solid ${C.border}`, opacity:.35 }}/>
-      <div className="w-logo" style={{ position:'relative', zIndex:1, width:56, height:56, borderRadius:'50%', border:`2px solid ${C.ink}`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Playfair Display',serif", fontSize:18, marginBottom:'2rem' }}>ss</div>
+      {/* decorative orbs: clipped inside a wrapper and tucked in the corners so they never overlap content */}
+      <div aria-hidden="true" style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none', zIndex:0 }}>
+        <div className="w-orb" style={{ position:'absolute', top:-40, left:-40, width:140, height:140, borderRadius:'50%', border:`1px solid ${C.border}`, opacity:.5 }}/>
+        <div className="w-orb" style={{ position:'absolute', bottom:-30, right:-30, width:100, height:100, borderRadius:'50%', border:`1px solid ${C.border}`, opacity:.4 }}/>
+      </div>
+      <div className="w-logo" style={{ position:'relative', zIndex:1, width:56, height:56, borderRadius:'50%', border:`2px solid ${C.ink}`, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Playfair Display',serif", fontSize:18, lineHeight:1, paddingBottom:3, paddingRight:1, boxSizing:'border-box', marginBottom:'2rem' }}>ss</div>
       <p className="w-eyebrow" style={{ position:'relative', zIndex:1, fontSize:'0.68rem', letterSpacing:'0.22em', textTransform:'uppercase', color:C.muted, marginBottom:'1rem' }}>{t.eyebrow}</p>
       <h1 className="welcome-title" style={{ position:'relative', zIndex:1, fontFamily:"'Playfair Display',serif", fontSize:'clamp(2.8rem,9vw,4.8rem)', lineHeight:1.02, marginBottom:'1.5rem' }}>
         <span style={{ display:'block', overflow:'hidden', paddingBottom:'0.08em' }}><span className="w-line" style={{ display:'block' }}>{t.title1}</span></span>
